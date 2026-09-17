@@ -531,7 +531,150 @@
 //   }
 // }
 
-// with company name extra
+// with company name extra == final working but model is not working
+
+// import { NextResponse } from "next/server";
+// import Groq from "groq-sdk";
+// import { connectDB } from "@/lib/db";
+// import { JobResult } from "@/lib/models/JobResult";
+
+// // ✅ Converts anything (including {literal, mimetype}) into string safely
+// const toText = (val: any) => {
+//   if (val == null) return "";
+//   if (typeof val === "string") return val;
+//   if (typeof val === "number") return String(val);
+//   if (typeof val === "object" && val.literal) return String(val.literal);
+//   return JSON.stringify(val);
+// };
+
+// export async function POST(req: Request) {
+//   try {
+//     const body = await req.json();
+
+//     const {
+//       jobTitle,
+//       companyName, // ✅ NEW
+//       escoOccupationUri,
+//       escoOccupationLabel,
+//       escoDescription,
+//       escoSkills,
+//       escoTasks,
+//       style,
+//     } = body;
+
+//     if (!jobTitle || !escoOccupationUri || !escoOccupationLabel) {
+//       return NextResponse.json(
+//         { error: "Missing required fields" },
+//         { status: 400 }
+//       );
+//     }
+
+//     const toneInstruction =
+//       style === "startup"
+//         ? "Write in a friendly, modern startup tone."
+//         : style === "corporate"
+//         ? "Write in a formal corporate tone."
+//         : "Write in a professional ATS-friendly tone.";
+
+//     const companyLine = toText(companyName).trim();
+
+//     const prompt = `
+// You are an expert HR recruiter and job description writer.
+
+// Generate a high-quality job description for this role.
+
+// ${companyLine ? `COMPANY NAME: ${companyLine}` : "COMPANY NAME: (not provided)"}
+// JOB TITLE: ${toText(jobTitle)}
+
+// Use the following reference data (facts only):
+// ROLE LABEL: ${toText(escoOccupationLabel)}
+// ROLE DESCRIPTION: ${toText(escoDescription) || "N/A"}
+// SKILLS: ${(Array.isArray(escoSkills) ? escoSkills : [])
+//       .map(toText)
+//       .join(", ")}
+// TASKS: ${(Array.isArray(escoTasks) ? escoTasks : [])
+//       .map(toText)
+//       .join(", ")}
+
+// Instructions:
+// - Do NOT mention ESCO in the output
+// - Do NOT add fake company names
+// - If COMPANY NAME is provided, include it in the job description (Company / About section)
+// - If COMPANY NAME is NOT provided, DO NOT create or guess a company name
+// - Keep it realistic, clear, and professional
+// - Make it readable and structured
+// - Avoid fluff and overly generic lines
+// - ${toneInstruction}
+
+// Output format (exact headings):
+// 0) Company (only if COMPANY NAME is provided)
+// 1) Job Title
+// 2) Role Overview
+// 3) Key Responsibilities (bullets)
+// 4) Required Skills (bullets)
+// 5) Preferred Skills (bullets)
+// 6) Qualifications (bullets)
+// 7) Key Metrics / Success Criteria (bullets)
+// 8) Keywords (comma-separated)
+// `.trim();
+
+//     const groq = new Groq({
+//       apiKey: process.env.GROQ_API_KEY,
+//     });
+
+//     const completion = await groq.chat.completions.create({
+//       model: "llama-3.1-8b-instant",
+//       messages: [
+//         {
+//           role: "system",
+//           content:
+//             "You write clean, professional, ATS-friendly job descriptions.",
+//         },
+//         { role: "user", content: prompt },
+//       ],
+//       temperature: 0.4,
+//       max_tokens: 900,
+//     });
+
+//     const refinedDescription = toText(
+//       completion?.choices?.[0]?.message?.content
+//     ).trim();
+
+//     if (!refinedDescription) {
+//       return NextResponse.json(
+//         { error: "Groq did not return output" },
+//         { status: 500 }
+//       );
+//     }
+
+//     await connectDB();
+
+//     const saved = await JobResult.create({
+//       jobTitle: toText(jobTitle),
+//       companyName: companyLine, // ✅ OPTIONAL: store it too
+//       escoOccupationUri: toText(escoOccupationUri),
+//       escoOccupationLabel: toText(escoOccupationLabel),
+//       escoDescription: toText(escoDescription),
+
+//       escoSkills: Array.isArray(escoSkills) ? escoSkills.map(toText) : [],
+//       escoTasks: Array.isArray(escoTasks) ? escoTasks.map(toText) : [],
+
+//       refinedDescription: toText(refinedDescription),
+//     });
+
+//     return NextResponse.json({
+//       refinedDescription: toText(refinedDescription), // ✅ guaranteed string
+//       savedId: saved._id,
+//     });
+//   } catch (err: any) {
+//     return NextResponse.json(
+//       { error: err?.message || "Something went wrong" },
+//       { status: 500 }
+//     );
+//   }
+// }
+
+// Model "llama-3.1-8b-instant" is deprecated for free/developer tier, use "openai/gpt-oss-20b" instead.
 
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
@@ -623,7 +766,11 @@ Output format (exact headings):
     });
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      // ⚠️ Groq deprecated "llama-3.1-8b-instant" for free/developer tier
+      // (announced 2026-06-17, fully decommissioned 2026-08-16).
+      // Official recommended replacement: "openai/gpt-oss-20b"
+      // For a bigger/more capable model instead, use "openai/gpt-oss-120b"
+      model: "openai/gpt-oss-20b",
       messages: [
         {
           role: "system",
